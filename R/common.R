@@ -1,3 +1,5 @@
+library(data.table)
+
 #********************************************************************************#
 #                                                                                #
 # Basic data manipulation functions that can be applicable in many contexts      #
@@ -27,7 +29,7 @@
 #       - verbose: if F, no output is printed
 #
 # output: dt but with all duplicates merged
-MergeDuplicatedRows <- function(dt, key_cols = NULL, concat_cols = NULL, sum_cols = NULL, mean_cols = NULL, 
+merge_duplicated_rows <- function(dt, key_cols = NULL, concat_cols = NULL, sum_cols = NULL, mean_cols = NULL, 
                                 max_cols = NULL, min_cols = NULL, weighted_average = NULL, weighted_average_by = NULL,
                                 sep = ";", concat_max_values = Inf, concat_guess_if_empty = TRUE, verbose = TRUE) {
   # validate input
@@ -55,7 +57,7 @@ MergeDuplicatedRows <- function(dt, key_cols = NULL, concat_cols = NULL, sum_col
   n_rows <- dt[, .N] # to print how many we merged
   
   if (is.null(key_cols) || key_cols == "" || is.na(key_cols)) {
-    if (verbose) cat("Merging all rows\n")
+    if (verbose) cat("Merging all rows.\n")
     dt[, `___MERGE_BY___` := 1]
     key_cols <- "___MERGE_BY___"
   }
@@ -79,7 +81,7 @@ MergeDuplicatedRows <- function(dt, key_cols = NULL, concat_cols = NULL, sum_col
   out <- unique(dt[, key_cols, with = F])
   
   if (!is.null(concat_cols) && length(concat_cols) > 0) {
-    concatOutcome <- dt[, lapply(.SD, function(x) {
+    concat_outcome <- dt[, lapply(.SD, function(x) {
       values <- na.omit(unique(x))
       if (length(values) > concat_max_values) {
         str_c("< ", length(values), " Values >")  # return simplified string
@@ -88,7 +90,7 @@ MergeDuplicatedRows <- function(dt, key_cols = NULL, concat_cols = NULL, sum_col
       }}),
       by = key_cols, .SDcols = concat_cols]
     
-    out <- merge(out, concatOutcome, by = key_cols, all.x = T)
+    out <- merge(out, concat_outcome, by = key_cols, all.x = T)
     
     # if we've concattenated numeric/logical columns for which there were never more than 1 value,
     # set column back to original column class (i.e. not character)
@@ -146,4 +148,62 @@ MergeDuplicatedRows <- function(dt, key_cols = NULL, concat_cols = NULL, sum_col
 get_column_classes <- function(dt, columns = NULL) {
   if (is.null(columns)) columns <- names(dt)
   return(sapply(dt, class)[names(dt) %in% columns])
+}
+
+# Check if any rows have duplicated values on the indicated by columns
+# Output: a stop indicating nb of duplicates, or a message that you have none
+check_duplicates <- function(dt, key_cols = NULL, stop = T, verbose = T) {
+  
+  if (is.null(key_cols)) {
+    message("Please provide key_cols to check duplicates.")
+    return()
+  }
+  n_duplicates <- sum(duplicated(dt[, mget(key_cols)]))
+  if (n_duplicates > 0) {
+    msg <- paste("You have ", n_duplicates, " duplicates (not counting the original rows).\n")
+    if (stop) {
+      stop(msg)
+    } else {
+      message(msg)
+    }
+  } else {
+    if (verbose) cat("You have no duplicates.\n")
+  }
+}
+
+# check if you have duplicates, a square dataset, or any NA values in your data
+#
+# Args:
+#       - dt: data.table
+#       - check_duplicates: check for duplicates on these columns
+#       - check_square: variables to check squareness on. This means that the data has an equal amount of entries
+#                       for the combination of these variables.
+check_dt <- function(dt, check_duplicates = NULL, check_na = NULL, check_square = NULL) {
+  if (is.null(check_duplicates) && is.null(check_na) && is.null(check_square)) {
+    message("Please give me something to check.")
+    stop()
+  }
+  
+  # Check if any NA values exist in the provided columns (or all)
+  if (!is.null(check_na)) {
+    if (check_na == T) {
+      check_na <- names(dt)
+    }
+    na_cols <- sapply(dt[, check_na, with = F], function(x) any(which(is.na(x))))
+    na_cols <- names(na_cols)[na_cols == TRUE]
+    if (length(na_cols) > 0) {
+      message(paste0(c("Some columns contain NA values. Namely: ", na_cols), collapse = " "))
+    }
+  }
+  
+  # check for duplicate key_cols combinations
+  if (!is.null(check_duplicates)) {
+    check_duplicates(dt, check_duplicates, stop = T, verbose = T)
+  }
+
+  if (check_square) {
+    if (length(unique(dt[, .N, by = check_square]$N)) > 1) {
+      stop(paste0(c("Your data is not square in the variables: ", check_square), collapse = " "))
+    }
+  }
 }

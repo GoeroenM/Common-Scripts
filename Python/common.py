@@ -183,7 +183,7 @@ def check_df(df, check_duplicates = None, check_nan = None, check_square = None,
             nan_cols = \
             df[check_nan].columns[df[check_nan].isna().any()].tolist()
             if verbose:
-                print(str("Some numeric columns contain NaN values. Namely: "+
+                print(str("Some columns contain NaN values. Namely: "+
                           str(nan_cols)))
                 
     if check_square != None:

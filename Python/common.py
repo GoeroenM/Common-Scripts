@@ -170,10 +170,10 @@ def check_duplicates(df, key_cols = None, verbose = True, stop = True):
 #   - check_square: check if the dataset is 'square' in the columns you give.
 #                   This means that the dataset has an equal amount of entries
 #                   for all combinations of the variables you give here.
-def check_df(df, key_cols = None, check_nan = None, check_square = None,
+def check_df(df, check_duplicates = None, check_nan = None, check_square = None,
              verbose = True):
-    if key_cols != None:
-        check_duplicates(df, key_cols, verbose, stop = False)
+    if check_duplicates != None:
+        check_duplicates(df, check_duplicates, verbose, stop = False)
     
     if check_nan != None:
         if check_nan == True:
@@ -190,7 +190,7 @@ def check_df(df, key_cols = None, check_nan = None, check_square = None,
         # Safest way to check is to work with a dummy table and column
         df_dummy = df[check_square]
         df_dummy['dummy'] = 1
-        if len(df_dummy.groupby(key_cols).count()['dummy'].unique()) > 1:
+        if len(df_dummy.groupby(check_duplicates).count()['dummy'].unique()) > 1:
             if verbose:
                 print(str("Your data is not square in the variables: "+\
                           str(check_square)+".\n"))

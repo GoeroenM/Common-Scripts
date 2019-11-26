@@ -181,7 +181,7 @@ check_duplicates <- function(dt, key_cols = NULL, stop = T, verbose = T) {
 check_dt <- function(dt, check_duplicates = NULL, check_na = NULL, check_square = NULL) {
   if (is.null(check_duplicates) && is.null(check_na) && is.null(check_square)) {
     message("Please give me something to check.")
-    stop()
+    return(dt)
   }
   
   # Check if any NA values exist in the provided columns (or all)
@@ -215,7 +215,7 @@ check_dt <- function(dt, check_duplicates = NULL, check_na = NULL, check_square 
 flag_duplicates <- function(dt, cols = NULL) {
   if (is.null(cols)) {
     cat("Please provide cols to check duplicates on.")
-    return()
+    return(dt)
   }
   dt <- copy(dt)
   dt[, `:=` (ID = .I)]
@@ -449,6 +449,49 @@ set_column_classes <- function(dt, cols_classes, verbose = T) {
     } else {
       stop(cat(col, "has class of", col_class, "which is not yet defined. Please add to function.\n"))
     }
+  }
+  return(dt)
+}
+
+# Dataset Restructuring -------------------------------------------------------------------------------------------
+
+# split values in the columns in `colnames` (vector of one or more names),
+# creating a new row in dt for each split element (with same value on other columns)
+# eg dt =     colname   x   y     -> output would be:     colname   x   y
+#             a,b       1   2                             a         1   2
+#             c         3   4                             b         1   2
+#                                                         c         3   4
+unlist_columns <- function(dt, colnames, separator = ";") {
+  dt <- copy(dt)
+  for (cn in colnames) {
+    for (sep in separator) {
+      dt <- dt[rep(1 : .N, lengths(str_split(get(cn), sep)))][, (cn) := str_trim(unlist(str_split(dt[[cn]], sep)))]
+    }
+  }
+  return(dt)
+}
+
+# Function that squares a dataset i.e. make sure each product/market has the same number of rows.
+#
+# Args:
+#       - dt
+#       - setNaToZero: whether or not to set the NA values to zero or not.
+#       - square_by: column variable you want to use to square the dataset.
+#       - key_cols: key_cols you are missing data for for the square_by variable.
+square_dataset <- function(dt, set_na_to_zero = T, column_to_square_by = NULL, key_cols = NULL) {
+  if (is.null(columns_to_square_by) | is.null(key_cols)) {
+    cat("Please provide the necessary arguments to run this function.\n")
+    return(dt)
+  }
+  
+  square_by <- sort(unique(dt[[column_to_square_by]]))
+  
+  periods <- dt[, .(column_to_square_by = square_by), by = key_cols]
+  setnames(periods, "column_to_square_by", column_to_square_by)
+  
+  dt <- merge(dt, periods, by = c(key_cols, column_to_square_by), all.y = T)
+  if (set_na_to_zero) {
+    dt <- set_non_numeric_values_to_zero(dt)
   }
   return(dt)
 }

@@ -496,3 +496,8 @@ square_dataset <- function(dt, set_na_to_zero = T, column_to_square_by = NULL, k
   return(dt)
 }
 
+# --------------------------------------- Convenience / Basic ---------------------------------------
+# Set WD to current directory
+set_wd <- function() {
+  setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+}

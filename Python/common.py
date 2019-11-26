@@ -284,3 +284,9 @@ def square_dataset(df, set_nan_to_zero = True, square_by = None,
     
     
     return df
+
+
+# --------------- Convenience / Basic ---------------
+# Set WD to current directory
+def set_wd():
+  os.chdir(os.path.dirname(sys.argv[0]))

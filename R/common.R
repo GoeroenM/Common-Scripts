@@ -235,3 +235,135 @@ view_duplicates <- function(dt, key_cols = NULL, n_duplicates = 1) {
   out <- out[count > n_duplicates]
   return(out)
 }
+
+# ------------------------------- String / Missing Manipulation ---------------------------------------
+# Set all NAs in character columns to an empty character.
+# This function is mainly used for creating input for promo tools, as empty characters take up
+# less memory in Excel than NA does.
+set_na_to_empty_char <- function(dt) {
+  return(set_na_to_char(dt, ""))
+}
+
+set_na_to_char <- function(dt, character) {
+  dt <- copy(dt)
+  non_num_col_indices <- which(sapply(dt, is.character))
+  for (j in non_num_col_indices) set(dt, i = which(is.na(dt[[j]])), j = j, value = character)
+  return(dt)
+}
+
+
+
+# Set all NA, NaN, and Inf values in any numeric columns in the indicated data.table to 0
+set_non_numeric_values_to_zero <- function(dt) {
+  return(set_non_numeric_values_to(dt, 0))
+}
+
+
+
+# Set all NA, NaN, and Inf values in any numeric columns in the indicated data.table to the indicated value
+set_non_numeric_values_to <- function(dt, value) {
+  dt <- copy(dt)
+  num_col_indices <- which(sapply(dt, is.numeric))
+  for (j in num_col_indices) set(dt, i = which(!is.finite(dt[[j]])), j = j, value = value)
+  return(dt)
+}
+
+
+
+# round all numeric cols to this many decimals
+round_num_cols <- function(dt, n_decimals) {
+  dt <- copy(dt)
+  num_cols <- names(dt)[sapply(dt, is.numeric)]
+  for (cn in num_cols) dt[, (cn) := round(get(cn), n_decimals)]
+  return(dt)
+}
+
+
+
+# Uppercase all character columns and trim whitespace
+trim_and_uppercase <- function(dt) {
+  char_cols <- which(sapply(dt, is.character))
+  dt <- dt[, lapply(.SD, function(x) str_trim(str_to_upper(x))), .SDcols = char_cols]
+  return(dt)
+}
+
+
+
+# Convert all numeric columns to character, using the indicated decimal separator
+convert_num_cols_to_str <- function(dt, dec = ",") {
+  dt <- copy(dt)
+  num_col_indices <- which(sapply(dt, is.numeric))
+  for (j in num_col_indices) set(dt, j = j, value = str_replace(as.character(dt[[j]]), "\\.", dec))
+  return(dt)
+}
+
+
+
+# Replace certain character string in the column names of a table by another character.
+# Mostly used to get rid of all spaces in column names, as they make working with a table more cumbersome.
+replace_str_in_colnames <- function(dt, str_to_replace = " ", replace_by = "_") {
+  colnames_to_fix <- names(dt)[str_detect(names(dt), str_to_replace)]
+  for (col in colnames_to_fix) setnames(dt, col, str_replace_all(col, str_to_replace, replace_by))
+}
+
+
+
+# Remove 'bad' symbols from all character columns, replacing them with a space
+# See code for included forbidden symbols (the first is an arrow I think)
+# You will be notified if any changes that are made.
+remove_bad_symbols <- function(dt, bad_symbols = c("_x001A_", "\032", "~", "â", "\t", "\n", "\r"),
+                               replace_by = " ") {
+  detection <- rbindlist(lapply(colnames(dt), function(x) {
+    if (!is.numeric(dt[[x]])) {
+      detect <- which(str_detect(dt[[x]], paste(bad_symbols, collapse = "|")))
+      if (length(detect) > 0) {
+        data.table(Variable = x, CHANGED = dt[[x]][detect])
+      }
+    }
+  }))
+  
+  if (dim(detection)[1] > 0) {
+    print(detection)
+  }
+  dt <- dt[, lapply(.SD, function(x) {
+    if (!is.numeric(x)) {
+      mgsub(bad_symbols, c(rep("", length(bad_symbols) - 1), replace_by), x)
+    } else {
+      x
+    }}), .SDcols = colnames(dt)]
+  return(dt)
+}
+
+# ------------------------ Stuff to do with factors ----------------------------
+
+# Factorize the indicated columns. For large dts with character columns, this can reduce the object's size considerably
+factorize <- function(dt, cols) {
+  for (cn in cols) dt[, (cn) := as.factor(get(cn))]
+  return(dt)
+}
+
+
+
+# Get rid of factor columns. Either convert all to character/numeric or work by naming the columns you want to change. 
+# No need to specify convert_to if you're using num_cols and char_cols, can just leave it as default.
+# This function mainly exists because working with factor columns can be annoying, and unless you're working with
+# big datasets, there's no reason to use factors.
+unfactor <- function(dt, num_cols = NULL, char_cols = NULL, convert_to = "character") {
+  ### If everything needs to be converted to the same: either numeric or character.
+  if (is.null(num_cols) && is.null(char_cols)) {
+    factorCols <- names(dt)[which(sapply(dt, is.factor))]
+    if (convert_to == "character") {
+      for (fac in factorCols) dt[, (fac) := as.character(get(fac))]
+    } else if (convert_to == "numeric") {
+      for (fac in factorCols) dt[, (fac) := as.numeric(get(fac))]
+    } else {
+      message("Please tell me if you want to convert your factor columns to character or numeric. The current variable you provided was neither.")
+      stop()
+    }
+    return(dt)
+  } else { ### Change given columns to given class
+    for (col in num_cols) dt[, (col) := as.numeric(get(col))]
+    for (col in char_cols) dt[, (col) := as.character(get(col))]
+    return(dt)
+  }
+}

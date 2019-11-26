@@ -3,12 +3,6 @@ import numpy as np
 import os
 import sys
 
-# Change wd to current directory
-os.chdir('C:\\Users\\Goeroen\\Documents\\Python Scripts')
-
-test = pd.read_csv('test.csv')
-test = pd.read_csv('test2.csv')
-
 # Function that flattens a list of lists
 def flatten_list(l):
     # First remove all None elements from the list
@@ -211,6 +205,8 @@ def flag_duplicates(df, key_cols = None, keep = False):
 #              a;b     1  2                         a     1  2
 #               c      3  4                         b     1  2 
 #                                                   c     3  4
+# If you want to split un multiple separators, use a proper regex.
+# E.g.: if you want to split on ';' and '_', use sep= ';|_'.
 def unlist_columns(df, cols = None, sep = ";"):
     if cols == None:
         print("Please provide a list of colums to split on.")

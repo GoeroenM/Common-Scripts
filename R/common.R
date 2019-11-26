@@ -207,3 +207,21 @@ check_dt <- function(dt, check_duplicates = NULL, check_na = NULL, check_square 
     }
   }
 }
+
+# Find duplicates on the indicated columns (i.e. any row with identical values on these columns
+# will be flagged as a duplicate)
+# Output is dt with a 'duplicated' column added (with T/F values)
+# Note: the original row is also marked as duplicated, i.e. not like base::duplicated()
+flag_duplicates <- function(dt, cols = NULL) {
+  if (is.null(cols)) {
+    cat("Please provide cols to check duplicates on.")
+    return()
+  }
+  dt <- copy(dt)
+  dt[, `:=` (ID = .I)]
+  duplicate_ids <- unique(dt[duplicated(dt[, .SD, .SDcols = cols])
+                            | duplicated(dt[, .SD, .SDcols = cols], fromLast = TRUE), ID])
+  dt[, duplicated := ifelse(ID %in% duplicate_ids, TRUE, FALSE)]
+  return(dt[, !"ID"])
+}
+

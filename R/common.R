@@ -225,3 +225,13 @@ flag_duplicates <- function(dt, cols = NULL) {
   return(dt[, !"ID"])
 }
 
+# Small function that returns all rows of a data table which have more than a certain number of occurences in
+# those combinations
+# Args: - key_cols: column names of which you want to check duplicate combinations
+#       - n_duplicates: number of row occurences higher than which you consider something duplicate
+view_duplicates <- function(dt, key_cols = NULL, n_duplicates = 1) {
+  out <- copy(dt)
+  out[, count := .N, by = key_cols]
+  out <- out[count > n_duplicates]
+  return(out)
+}

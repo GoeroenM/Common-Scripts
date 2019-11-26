@@ -367,3 +367,89 @@ unfactor <- function(dt, num_cols = NULL, char_cols = NULL, convert_to = "charac
     return(dt)
   }
 }
+
+# --------------------------------- Columns ---------------------------------
+# Set the column order of dt, starting with columns in first_cols, then any columns not in first_cols
+# or last_cols, then columns in last_cols
+set_column_order <- function(dt, first_cols = NULL, last_cols = NULL) {
+  if (is.null(first_cols) && is.null(last_cols)) {
+    message("only NULL arguments passed, return dt as is")
+    return(dt)
+  }
+  
+  if (length(setdiff(c(first_cols, last_cols), names(dt))) > 0) {
+    stop("Following columns are not in dt: ", str_c(setdiff(c(first_cols, last_cols), names(dt)), collapse = ", "))
+  }
+  
+  setcolorder(dt, c(first_cols, setdiff(names(dt), c(first_cols, last_cols)), last_cols))
+}
+
+# Re-order the columns of dt such that the columns in cols_to_move (name or vector of names) are
+# right after col_to_place_after (name)
+place_columns_after <- function(dt, cols_to_move, col_to_place_after){
+  if (length(setdiff(c(cols_to_move, col_to_place_after), names(dt))) > 0) {
+    stop("Following columns are not in dt: ",
+         str_c(setdiff(c(cols_to_move, col_to_place_after), names(dt)), collapse = ", "))
+  }
+  
+  cols_before <- names(dt)[1 : which(names(dt) == col_to_place_after)]
+  cols_before <- setdiff(cols_before, cols_to_move)
+  
+  if (which(names(dt) == col_to_place_after) < length(names(dt))) {
+    cols_after <- names(dt)[(which(names(dt) == col_to_place_after) + 1) : length(names(dt))]
+    cols_after <- setdiff(cols_after, cols_to_move)
+  } else {
+    cols_after <- NULL # place after the last column
+  }
+  
+  setcolorder(dt, c(cols_before, cols_to_move, cols_after))
+}
+
+# Get the class (e.g., "numeric", "character") of the indicated columns (name or vector of names)
+# in the indicated table
+# Returns a named vector with the class of each of the columns in `columns`,
+# or of all columns if `columns` is NULL
+get_column_class <- function(dt, columns = NULL) {
+  if (is.null(columns)) columns <- names(dt)
+  return(sapply(dt, class)[names(dt) %in% columns])
+}
+
+# Set the class (e.g., "numeric", "character") of the variables in dt based on a named vector
+# containing the class as value and the variable as name
+#
+# Returns dt with altered column classes.
+#
+# Any columns in dt that are not defined in cols_classes are left untouched.
+#
+# Args:
+#     - dt
+#     - cols_classes: named vector, where names reflect column names and values reflect
+#         the corresponding column class
+set_column_classes <- function(dt, cols_classes, verbose = T) {
+  not_in_classes <- setdiff(names(dt), names(cols_classes))
+  if (length(not_in_classes) > 0) {
+    if (verbose) cat("Columns", str_c(not_in_classes, sep = ", "),
+                     "are not in cols_classes. We will leave the class like it was.\n")
+  }
+  not_in_dt <- setdiff(names(cols_classes), names(dt))
+  if (length(not_in_dt) > 0) {
+    if (verbose) cat("Columns", str_c(not_in_dt, sep = ", "),
+                     "are not in dt. We will not change these classes since they are not in dt.\n")
+  }
+  for (col in names(cols_classes)) {
+    col_class <- cols_classes[names(cols_classes) == col]
+    if (col_class == "numeric") {
+      set(dt, j = col, value = as.numeric(dt[[col]]))
+    } else if (col_class == "character") {
+      set(dt, j = col, value = as.character(dt[[col]]))
+    } else if (col_class == "integer") {
+      set(dt, j = col, value = as.integer(dt[[col]]))
+    } else if (col_class == "logical") {
+      set(dt, j = col, value = as.logical(dt[[col]]))
+    } else {
+      stop(cat(col, "has class of", col_class, "which is not yet defined. Please add to function.\n"))
+    }
+  }
+  return(dt)
+}
+

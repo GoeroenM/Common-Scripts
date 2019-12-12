@@ -501,3 +501,52 @@ square_dataset <- function(dt, set_na_to_zero = T, column_to_square_by = NULL, k
 set_wd <- function() {
   setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 }
+
+
+# Function that spreads values in table 'spread' over a weight column in dt either using key_cols or not.
+#
+# Args:
+#     - dt: table your want to add spread values to
+#     - spread: table with values you want to spread
+#     - key_cols: optional; key columns you want to spread by. If none are given, all colums in spread will be summed
+#     - weight: column in dt you want to use as weight to spread over
+spread_values <- function(dt, key_cols = NULL, spread = NULL, weight = NULL) {
+  if (is.null(key_cols)) {
+    cat("No key_cols provided, will sum all columns and spread over all rows.")
+    spread <- spread[, sapply(spread, sum, na.rm = T)]
+  }
+  
+  if (is.null(spread) || spread[, .N] == 0) {
+    cat("No values to spread provided.")
+    return(dt)
+  }
+  
+  spread_cols <- ifelse(is.null(key_cols), names(spread), setdiff(names(spread), key_cols))
+  
+  # Check for duplicates and merge/sum if any exist.
+  if (!is.null(key_cols) & sum(duplicated(spread[, mget(key_cols)])) > 0) {
+    cat("You had duplicated rows in your spread table, will merge duplicates and sum.")
+    spread <- merge_duplicated_rows(spread, key_cols = key_cols, sum_cols = spread_cols, verbose = F)
+  }
+  
+  # Check if any colums already existed in dt, if so, remove them.
+  if (length(setdiff(names(dt), spread_cols)) > 0) {
+    cat(paste0("Warning, the following colums already existed in dt: ", intersect(names(dt), spread_cols), ".\n"))
+    cat("They will be overwritten with the newly spread values.")
+    dt[, intersect(names(dt), spread_cols) := NULL, with = F]
+  }
+  
+  if (is.null(key_cols)) {
+    for (col in spread_cols) {
+      weight_sum <- sum(dt[, get(weight)])
+      dt[, col := ifelse(weightSum == 0, 0, spread[col] / weight_sum)]
+    }
+  } else {
+    dt <- merge(dt, spread, by = key_cols, all.x = T)
+    dt[, weight_sum := sum(weight, na.rm = T), by = key_cols]
+    for (col in spread_cols) {
+      dt[, col := ifelse(weight_sum == 0, 0, get(col) / weight_sum)]
+    }
+  }
+  return(dt)
+}
